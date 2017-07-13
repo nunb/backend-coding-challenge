@@ -1,0 +1,20 @@
+Search: <input id="suggestion" />
+<pre id="out"></pre>
+<script>"use strict";
+var suggestion = document.getElementById("suggestion");
+suggestion.addEventListener("input", function(e){
+});
+suggestion.addEventListener("keydown", function(e){
+    if (e.keyCode == 13) {
+        doSearch();
+    }
+});
+function doSearch() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/suggestions?q=" + encodeURIComponent(suggestion.value), true);
+    xhr.addEventListener("load", function(){
+        document.getElementById("out").textContent = this.responseText;
+    });
+    xhr.send();
+}
+</script>

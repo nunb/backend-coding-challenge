@@ -4,5 +4,10 @@ version = "0.1.0"
 authors = ["serprex"]
 
 [dependencies]
-iron = "0.5.1"
-router = "0.5.1"
+iron = "0.5"
+router = "0.5"
+urlencoded = "0.5"
+
+csv = "1.0.0-beta.3"
+fnv = "^1.0.5"
+lazy_static = "0.2"
