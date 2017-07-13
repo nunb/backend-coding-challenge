@@ -7,14 +7,16 @@ extern crate serde;
 extern crate serde_json;
 
 extern crate csv;
-extern crate fnv;
 #[macro_use] extern crate lazy_static;
+extern crate levenshtein;
+extern crate suffix;
 
 use std::env;
-use fnv::FnvHashMap;
 use iron::{Iron, IronResult, Plugin, Request, Response, status, headers};
 use iron::mime::{Mime, TopLevel, SubLevel};
+use levenshtein::levenshtein;
 use router::Router;
+use suffix::SuffixTable;
 use urlencoded::UrlEncodedQuery;
 
 static INDEXHTML: &'static str = include_str!("index.html");
@@ -53,7 +55,12 @@ struct Suggestion {
 
 #[derive(Serialize)]
 struct Suggestions {
-    pub suggestions: Vec<Suggestion>
+    pub suggestions: Vec<Suggestion>,
+}
+
+#[derive(Serialize)]
+struct Error {
+    pub err: String,
 }
 
 lazy_static!{
@@ -69,13 +76,25 @@ lazy_static!{
         data
     };
 
-    static ref GEONAMES: FnvHashMap<&'static str, Vec<&'static LocationRecord>> = {
-        let mut map: FnvHashMap<&'static str, Vec<&'static LocationRecord>> = FnvHashMap::default();
+    // BurntSushi hasn't decided how to create a good API for querying a suffix from a set of strings
+    // workaround: search for suffix in stringset.join('\0'), maintain a method to lookup nth string based on byte index
+    static ref SUFFIX_STRINDEX_PAIR: (String, Vec<usize>) = {
+        let mut suffixstr = String::new();
+        let mut suffixindices = Vec::new();
         for record in GEODATA.iter() {
-            map.entry(&record.name[..]).or_insert_with(Vec::new).push(record);
+            suffixindices.push(suffixstr.len());
+            suffixstr.push_str(&record.name);
+            suffixstr.push('\0');
         }
-        map
+
+        let pop0 = suffixstr.pop();
+        assert_eq!(pop0, Some('\0'));
+
+        (suffixstr, suffixindices)
     };
+
+    static ref SUFFIXTABLE: SuffixTable<'static, 'static> = SuffixTable::new(SUFFIX_STRINDEX_PAIR.0.as_str());
+    static ref SUFFIXINDICES: &'static Vec<usize> = &SUFFIX_STRINDEX_PAIR.1;
 }
 
 fn index(_: &mut Request) -> IronResult<Response> {
@@ -87,23 +106,40 @@ fn index(_: &mut Request) -> IronResult<Response> {
 fn suggestions(req: &mut Request) -> IronResult<Response> {
     let resptext = match req.get_ref::<UrlEncodedQuery>() {
         Ok(ref gets) => {
-            let gqf = gets.get("q").and_then(|gq| gq.first());
-            if let Some(ref exacts) = gqf.and_then(|gqf| GEONAMES.get(gqf.as_str())) {
-                serde_json::to_string(&Suggestions {
-                    suggestions: exacts.iter().map(|exact|
-                        Suggestion {
-                            name: format!("{}, {}", exact.name, exact.country),
-                            latitude: exact.lat,
-                            longitude: exact.long,
-                            score: 0.5,
-                        }
-                    ).collect()
-                }).unwrap()
+            if let Some(gqf) = gets.get("q").and_then(|gq| gq.first()) {
+                let indices = SUFFIXTABLE.positions(gqf.as_str());
+
+                let mut result = Vec::new();
+                let mut matchs = Vec::new();
+                if !indices.is_empty() {
+                    let score = 1. / indices.len() as f64;
+                    for &idx32 in indices {
+                        let idx = idx32 as usize;
+                        let geodata_idx = match SUFFIXINDICES.binary_search(&idx) {
+                            Ok(x) => x,
+                            Err(x) => x-1,
+                        };
+                        let record = &GEODATA[geodata_idx];
+                        matchs.push((record, levenshtein(record.name.as_str(), gqf.as_str())));
+                    }
+                    matchs.sort_by(|&(_, dista), &(_, distb)| dista.cmp(&distb));
+
+                    for (data, _) in matchs {
+                        result.push(Suggestion {
+                            name: format!("{}, {}", data.name, data.country),
+                            latitude: data.lat,
+                            longitude: data.long,
+                            score: score,
+                        });
+                    }
+                }
+
+                serde_json::to_string(&Suggestions { suggestions: result }).unwrap()
             } else {
-                format!("GET: {:?}", gets)
+                String::from("{ err: \"Missing parameter: q\" }")
             }
         },
-        Err(ref e) => format!("Error: {:?}", e),
+        Err(ref e) => serde_json::to_string(&Error { err: format!("Error: {:?}", e) }).unwrap(),
     };
     let mut resp = Response::with((status::Ok, resptext));
     resp.headers.set(headers::ContentType(Mime(TopLevel::Application, SubLevel::Json, Vec::new())));
