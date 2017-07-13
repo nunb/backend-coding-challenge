@@ -2,6 +2,10 @@ extern crate iron;
 extern crate router;
 extern crate urlencoded;
 
+extern crate serde;
+#[macro_use] extern crate serde_derive;
+extern crate serde_json;
+
 extern crate csv;
 extern crate fnv;
 #[macro_use] extern crate lazy_static;
@@ -16,39 +20,59 @@ use urlencoded::UrlEncodedQuery;
 static INDEXHTML: &'static str = include_str!("index.html");
 static DATACSV: &'static str = include_str!("../data/cities_canada-usa.tsv");
 
+#[derive(Deserialize)]
 struct LocationRecord {
-    id: u64,
+    // id: u64,
     name: String,
-    ascii: String,
-    alt_name: String,
+    // ascii: String,
+    // alt_name: String,
     lat: f64,
     long: f64,
-    feat_class: String,
-    feat_code: String,
+    // feat_class: String,
+    // feat_code: String,
     country: String,
-    cc2: String,
-    admin1: String,
-    admin2: String,
-    admin3: String,
-    admin4: String,
-    population: u64,
-    elevation: u64,
-    dem: u64,
-    tz: String,
-    modified_at: String,
+    // cc2: String,
+    // admin1: String,
+    // admin2: String,
+    // admin3: String,
+    // admin4: String,
+    // population: u64,
+    // elevation: Option<i32>,
+    // dem: Option<f32>,
+    // tz: String,
+    // modified_at: String,
 }
 
-struct LatLong(f64, f64);
+#[derive(Serialize)]
+struct Suggestion {
+    pub name: String,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub score: f64,
+}
+
+#[derive(Serialize)]
+struct Suggestions {
+    pub suggestions: Vec<Suggestion>
+}
 
 lazy_static!{
-    static ref GEODATA: FnvHashMap<String, LatLong> = {
-        let mut map: FnvHashMap<String, LatLong> = FnvHashMap::default();
+    static ref GEODATA: Vec<LocationRecord> = {
+        let mut data = Vec::new();
         let mut rdr = csv::ReaderBuilder::new()
-            .has_headers(true)
             .delimiter(b'\t')
             .from_reader(DATACSV.as_bytes());
-        for record in rdr.records().filter_map(|x| x.ok()) {
-            map.insert(String::from(&record[1]), LatLong(record[4].parse().unwrap(), record[5].parse().unwrap()));
+        for record in rdr.deserialize() {
+            let record: LocationRecord = record.expect("Invalid record in csv");
+            data.push(record);
+        }
+        data
+    };
+
+    static ref GEONAMES: FnvHashMap<&'static str, Vec<&'static LocationRecord>> = {
+        let mut map: FnvHashMap<&'static str, Vec<&'static LocationRecord>> = FnvHashMap::default();
+        for record in GEODATA.iter() {
+            map.entry(&record.name[..]).or_insert_with(Vec::new).push(record);
         }
         map
     };
@@ -64,10 +88,19 @@ fn suggestions(req: &mut Request) -> IronResult<Response> {
     let resptext = match req.get_ref::<UrlEncodedQuery>() {
         Ok(ref gets) => {
             let gqf = gets.get("q").and_then(|gq| gq.first());
-            if let Some(exact) = gqf.and_then(|gqf| GEODATA.get(gqf)) {
-                format!("{{suggestions:[{{latitude:\"{}\",longitude:\"{}\"}}]}}", exact.0, exact.1)
+            if let Some(ref exacts) = gqf.and_then(|gqf| GEONAMES.get(gqf.as_str())) {
+                serde_json::to_string(&Suggestions {
+                    suggestions: exacts.iter().map(|exact|
+                        Suggestion {
+                            name: format!("{}, {}", exact.name, exact.country),
+                            latitude: exact.lat,
+                            longitude: exact.long,
+                            score: 0.5,
+                        }
+                    ).collect()
+                }).unwrap()
             } else {
-                format!("GET {}: {:?}", get_server_port(), gets)
+                format!("GET: {:?}", gets)
             }
         },
         Err(ref e) => format!("Error: {:?}", e),
