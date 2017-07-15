@@ -1,5 +1,6 @@
 <title>Coveo's Backend Challenge's Frontend</title>
-Search: <input id="suggestion" placeholder="Location" /> <input id="suglat" type="number" step="0.000001" placeholder="Latitude" /> <input id="suglong" type="number" step="0.00001" placeholder="Longitude" />
+<div><input id="suggestion" placeholder="Location" /> <input id="suglat" type="number" step="0.000001" placeholder="Latitude" /> <input id="suglong" type="number" step="0.00001" placeholder="Longitude" /></div>
+<div><input id="sugradius" type="number" placeholder="Radius (km)" /></div>
 <div id="msg" style="display:none"></div>
 <div>
     <img id="map" src="https://upload.wikimedia.org/wikipedia/commons/7/74/North_America_blank_map_with_state_and_province_boundaries.png" style="positon:inline-block;width:400px;vertical-align:top" />
@@ -17,6 +18,7 @@ Search: <input id="suggestion" placeholder="Location" /> <input id="suglat" type
 var suggestion = document.getElementById("suggestion");
 var suglat = document.getElementById("suglat");
 var suglong = document.getElementById("suglong");
+var sugradius = document.getElementById("sugradius");
 var loctab = document.getElementById("loctab");
 var map = document.getElementById("map");
 var msg = document.getElementById("msg");
@@ -27,22 +29,27 @@ var mapRect = {
     n: 83,
     s: 25,
 };
-suggestion.addEventListener("input", function(){
+function doSearchSoon() {
     if (suggestDelay) {
         clearTimeout(suggestDelay);
     }
     suggestDelay = setTimeout(function(){
         doSearch();
     }, 90);
-});
-suggestion.addEventListener("keydown", function(e){
-    if (e.keyCode == 13) {
-        doSearch();
-    }
-});
+}
+var inputFields = [suggestion, suglat, suglong, sugradius];
+for (var i = 0; i<inputFields.length; i++) {
+    inputFields[i].addEventListener("input", doSearchSoon);
+    inputFields[i].addEventListener("keydown", function(e){
+        if (e.keyCode == 13) {
+            doSearch();
+        }
+    });
+}
 map.addEventListener("mousedown", function(e) {
     suglat.value = (mapRect.n - (mapRect.n - mapRect.s) * (e.pageY - this.offsetTop) / this.offsetHeight).toFixed(6);
     suglong.value = (mapRect.w - (mapRect.w - mapRect.e) * (e.pageX - this.offsetLeft) / this.offsetWidth).toFixed(6);
+    doSearch();
 });
 function doSearch() {
     if (suggestDelay) {
@@ -53,6 +60,7 @@ function doSearch() {
     var query = "/suggestions?q=" + encodeURIComponent(suggestion.value);
     if (suglat.value) query += "&latitude=" + suglat.value;
     if (suglong.value) query += "&longitude=" + suglong.value;
+    if (sugradius.value) query += "&radius=" + sugradius.value;
     xhr.open("GET", query, true);
     xhr.addEventListener("load", function(){
         var data = JSON.parse(this.responseText);
@@ -65,7 +73,7 @@ function doSearch() {
             if (data.suggestions.length) {
                 msg.style.display = "none";
                 loctab.style.display = "inline-block";
-                while (loctab.rows > 1) loctab.deleteRow();
+                while (loctab.rows.length > 1) loctab.deleteRow(-1);
                 for (var i = 0; i<data.suggestions.length; i++) {
                     var row = loctab.insertRow();
                     row.insertCell().textContent = data.suggestions[i].name;

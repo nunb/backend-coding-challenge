@@ -14,6 +14,7 @@ extern crate suffix;
 mod models;
 mod routes;
 mod statics;
+mod util;
 
 use std::env;
 use iron::Iron;

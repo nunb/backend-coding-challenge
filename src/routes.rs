@@ -6,6 +6,7 @@ use urlencoded::UrlEncodedQuery;
 
 use models;
 use statics::*;
+use util::calcdist_latlong;
 
 pub fn index(_: &mut Request) -> IronResult<Response> {
     let mut resp = Response::with((status::Ok, INDEXHTML));
@@ -16,6 +17,9 @@ pub fn index(_: &mut Request) -> IronResult<Response> {
 pub fn suggestions(req: &mut Request) -> IronResult<Response> {
     let resptext = match req.get_ref::<UrlEncodedQuery>() {
         Ok(ref gets) => {
+            let latitude: Option<f64> = gets.get("latitude").and_then(|x| x.first()).and_then(|x| x.parse().ok());
+            let longitude: Option<f64> = gets.get("longitude").and_then(|x| x.first()).and_then(|x| x.parse().ok());
+            let radius: f64 = gets.get("radius").and_then(|x| x.first()).and_then(|x| x.parse().ok()).unwrap_or(500.0);
             if let Some(gqf) = gets.get("q").and_then(|gq| gq.first()).map(|gq| gq.to_lowercase()) {
                 let indices = SUFFIXTABLE.positions(gqf.as_str());
 
@@ -34,13 +38,21 @@ pub fn suggestions(req: &mut Request) -> IronResult<Response> {
                     }
                     matchs.sort_by(|&(_, dista), &(_, distb)| dista.cmp(&distb));
 
-                    for (data, _) in matchs.into_iter().take(20) {
+                    for (data, _) in matchs.into_iter() {
+                        if let (Some(latitude), Some(longitude)) = (latitude, longitude) {
+                            if calcdist_latlong(data.lat, data.long, latitude, longitude) > radius {
+                                continue
+                            }
+                        }
                         result.push(models::Suggestion {
                             name: format!("{}, {}", data.name, data.country),
                             latitude: data.lat,
                             longitude: data.long,
                             score: score,
                         });
+                        if result.len() == 20 {
+                            break
+                        }
                     }
                 }
 
