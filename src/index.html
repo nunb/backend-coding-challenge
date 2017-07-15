@@ -1,8 +1,32 @@
-Search: <input id="suggestion" />
-<pre id="out"></pre>
-<script>"use strict";
+<title>Coveo's Backend Challenge's Frontend</title>
+Search: <input id="suggestion" placeholder="Location" /> <input id="suglat" type="number" placeholder="Latitude" /> <input id="suglong" type="number" placeholder="Longitude" />
+<div id="msg" style="display:none"></div>
+<div>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/7/74/North_America_blank_map_with_state_and_province_boundaries.png" style="positon:inline-block;width:400px;vertical-align:top" />
+    <table style="display:none;width:400px;vertical-align:top" id="loctab">
+        <thead>
+            <tr>
+                <th>Location</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<script async>"use strict";
 var suggestion = document.getElementById("suggestion");
-suggestion.addEventListener("input", function(e){
+var suglat = document.getElementById("suglat");
+var suglong = document.getElementById("suglong");
+var loctab = document.getElementById("loctab");
+var msg = document.getElementById("msg");
+var suggestDelay = null;
+suggestion.addEventListener("input", function(){
+    if (suggestDelay) {
+        clearTimeout(suggestDelay);
+    }
+    suggestDelay = setTimeout(function(){
+        doSearch();
+    }, 90);
 });
 suggestion.addEventListener("keydown", function(e){
     if (e.keyCode == 13) {
@@ -10,10 +34,39 @@ suggestion.addEventListener("keydown", function(e){
     }
 });
 function doSearch() {
+    if (suggestDelay) {
+        clearTimeout(suggestDelay);
+        suggestDelay = null;
+    }
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", "/suggestions?q=" + encodeURIComponent(suggestion.value), true);
+    var query = "/suggestions?q=" + encodeURIComponent(suggestion.value);
+    if (suglat.value) query += "&latitude=" + suglat.value;
+    if (suglong.value) query += "&longitude=" + suglong.value;
+    xhr.open("GET", query, true);
     xhr.addEventListener("load", function(){
-        document.getElementById("out").textContent = this.responseText;
+        var data = JSON.parse(this.responseText);
+        if (data.err) {
+            msg.textContent = data.err;
+            msg.style.display = "block";
+            loctab.style.display = "none";
+        }
+        else if (data.suggestions) {
+            if (data.suggestions.length) {
+                msg.style.display = "none";
+                loctab.style.display = "inline-block";
+                while (loctab.rows > 1) loctab.deleteRow();
+                for (var i = 0; i<data.suggestions.length; i++) {
+                    var row = loctab.insertRow();
+                    row.insertCell().textContent = data.suggestions[i].name;
+                    row.insertCell().textContent = data.suggestions[i].latitude;
+                    row.insertCell().textContent = data.suggestions[i].longitude;
+                }
+            } else {
+                msg.textContent = "No results found";
+                msg.style.display = "block";
+                loctab.style.display = "none";
+            }
+        }
     });
     xhr.send();
 }
