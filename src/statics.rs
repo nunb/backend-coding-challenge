@@ -1,5 +1,5 @@
 use csv;
-use suffix::SuffixTable;
+use fnv::FnvHashMap;
 
 use models;
 
@@ -19,23 +19,23 @@ lazy_static!{
         data
     };
 
-    // BurntSushi hasn't decided how to create a good API for querying a suffix from a set of strings
-    // workaround: search for suffix in stringset.join('\0'), maintain a method to lookup nth string based on byte index
-    pub static ref SUFFIX_STRINDEX_PAIR: (String, Vec<usize>) = {
-        let mut suffixstr = String::new();
-        let mut suffixindices = Vec::new();
-        for record in GEODATA.iter() {
-            suffixindices.push(suffixstr.len());
-            suffixstr.push_str(&record.name.to_lowercase());
-            suffixstr.push('\0');
-        }
-
-        let pop0 = suffixstr.pop();
-        assert_eq!(pop0, Some('\0'));
-
-        (suffixstr, suffixindices)
+    pub static ref PROVADMIN1: FnvHashMap<&'static str, &'static str> = {
+        // Admin1 is already state codes for US, so only need to map province codes
+        let mut map = FnvHashMap::with_capacity_and_hasher(13, Default::default());
+        map.insert("01", "AB");
+        map.insert("02", "BC");
+        map.insert("03", "MB");
+        map.insert("04", "NB");
+        map.insert("05", "NL");
+        // No 6
+        map.insert("07", "NS");
+        map.insert("08", "ON");
+        map.insert("09", "PE");
+        map.insert("10", "QC");
+        map.insert("11", "SK");
+        map.insert("12", "YK");
+        map.insert("13", "NT");
+        map.insert("14", "NU");
+        map
     };
-
-    pub static ref SUFFIXTABLE: SuffixTable<'static, 'static> = SuffixTable::new(SUFFIX_STRINDEX_PAIR.0.as_str());
-    pub static ref SUFFIXINDICES: &'static Vec<usize> = &SUFFIX_STRINDEX_PAIR.1;
 }

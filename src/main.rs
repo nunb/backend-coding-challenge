@@ -8,7 +8,7 @@ extern crate serde_json;
 
 extern crate csv;
 #[macro_use] extern crate lazy_static;
-extern crate suffix;
+extern crate fnv;
 
 mod models;
 mod routes;

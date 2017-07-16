@@ -32,7 +32,9 @@ pub fn suggestions(req: &mut Request) -> IronResult<Response> {
 
                     let mut total_population = 0;
                     for record in GEODATA.iter() {
-                        if record.name_lower.starts_with(gqf.as_str()) {
+                        if record.name_lower.starts_with(gqf.as_str()) ||
+                            record.name_ascii_lower.starts_with(gqf.as_str())
+                        {
                             total_population += record.population;
                             matchs.push((record, 0.0));
                         }
@@ -41,16 +43,12 @@ pub fn suggestions(req: &mut Request) -> IronResult<Response> {
                         *score = r.population as f64 / total_population as f64;
                     }
                 } else {
-                    let indices = SUFFIXTABLE.positions(gqf.as_str());
-
-                    for &idx32 in indices {
-                        let idx = idx32 as usize;
-                        let geodata_idx = match SUFFIXINDICES.binary_search(&idx) {
-                            Ok(x) => x,
-                            Err(x) => x-1,
-                        };
-                        let record = &GEODATA[geodata_idx];
-                        matchs.push((record, util::dice_coefficient(record.name_lower.as_str(), gqf.as_str())));
+                    for record in GEODATA.iter() {
+                        let score = f64::max(util::dice_coefficient(record.name_lower.as_str(), gqf.as_str()),
+                            util::dice_coefficient(record.name_ascii_lower.as_str(), gqf.as_str()));
+                        if score > 0.1 {
+                            matchs.push((record, score));
+                        }
                     }
                 }
                 matchs.sort_by(|&(_, dista), &(_, distb)| distb.partial_cmp(&dista).unwrap_or(Ordering::Equal));

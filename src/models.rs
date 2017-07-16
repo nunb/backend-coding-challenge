@@ -1,8 +1,10 @@
+use statics;
+
 #[derive(Deserialize)]
 pub struct LocationRecordRaw {
     // pub id: u64,
     pub name: String,
-    // pub ascii: String,
+    pub ascii: String,
     // pub alt_name: String,
     pub lat: f64,
     pub long: f64,
@@ -10,7 +12,7 @@ pub struct LocationRecordRaw {
     // pub feat_code: String,
     pub country: String,
     // pub cc2: String,
-    // pub admin1: String,
+    pub admin1: String,
     // pub admin2: String,
     // pub admin3: String,
     // pub admin4: String,
@@ -24,9 +26,11 @@ pub struct LocationRecordRaw {
 pub struct LocationRecord {
     pub name: String,
     pub name_lower: String,
+    pub name_ascii_lower: String,
     pub lat: f64,
     pub long: f64,
     pub country: String,
+    pub stateprov: String,
     pub population: u64,
 }
 
@@ -52,12 +56,19 @@ pub struct Error {
 impl From<LocationRecordRaw> for LocationRecord {
     fn from(raw: LocationRecordRaw) -> LocationRecord
     {
+        let stateprov = if let Some(&prov) = statics::PROVADMIN1.get(raw.admin1.as_str()) {
+            String::from(prov)
+        } else {
+            raw.admin1
+        };
         LocationRecord {
             name_lower: raw.name.to_lowercase(),
+            name_ascii_lower: raw.ascii.to_lowercase(),
             name: raw.name,
             lat: raw.lat,
             long: raw.long,
             country: raw.country,
+            stateprov: stateprov,
             population: raw.population,
         }
     }
@@ -67,7 +78,7 @@ impl Suggestion {
     pub fn new(record: &LocationRecord, score: f64) -> Suggestion
     {
         Suggestion {
-            name: format!("{}, {}", record.name, record.country),
+            name: format!("{}, {}, {}", record.name, record.stateprov, record.country),
             latitude: record.lat,
             longitude: record.long,
             population: record.population,
