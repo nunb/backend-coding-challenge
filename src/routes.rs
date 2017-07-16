@@ -1,12 +1,12 @@
+use std::cmp::Ordering;
 use iron::{IronResult, Plugin, Request, Response, status, headers};
 use iron::mime::{Mime, TopLevel, SubLevel};
-use levenshtein::levenshtein;
 use serde_json;
 use urlencoded::UrlEncodedQuery;
 
 use models;
 use statics::*;
-use util::calcdist_latlong;
+use util;
 
 pub fn index(_: &mut Request) -> IronResult<Response> {
     let mut resp = Response::with((status::Ok, INDEXHTML));
@@ -26,7 +26,6 @@ pub fn suggestions(req: &mut Request) -> IronResult<Response> {
                 let mut result = Vec::new();
                 let mut matchs = Vec::new();
                 if !indices.is_empty() {
-                    let score = 1. / indices.len() as f64;
                     for &idx32 in indices {
                         let idx = idx32 as usize;
                         let geodata_idx = match SUFFIXINDICES.binary_search(&idx) {
@@ -34,13 +33,13 @@ pub fn suggestions(req: &mut Request) -> IronResult<Response> {
                             Err(x) => x-1,
                         };
                         let record = &GEODATA[geodata_idx];
-                        matchs.push((record, levenshtein(record.name.as_str(), gqf.as_str())));
+                        matchs.push((record, util::dice_coefficient(record.name.as_str(), gqf.as_str())));
                     }
-                    matchs.sort_by(|&(_, dista), &(_, distb)| dista.cmp(&distb));
+                    matchs.sort_by(|&(_, dista), &(_, distb)| distb.partial_cmp(&dista).unwrap_or(Ordering::Equal));
 
-                    for (data, _) in matchs.into_iter() {
+                    for (data, score) in matchs.into_iter() {
                         if let (Some(latitude), Some(longitude)) = (latitude, longitude) {
-                            if calcdist_latlong(data.lat, data.long, latitude, longitude) > radius {
+                            if util::calcdist_latlong(data.lat, data.long, latitude, longitude) > radius {
                                 continue
                             }
                         }

@@ -8,7 +8,6 @@ extern crate serde_json;
 
 extern crate csv;
 #[macro_use] extern crate lazy_static;
-extern crate levenshtein;
 extern crate suffix;
 
 mod models;
