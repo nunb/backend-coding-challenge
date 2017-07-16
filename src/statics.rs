@@ -13,8 +13,8 @@ lazy_static!{
             .delimiter(b'\t')
             .from_reader(DATACSV.as_bytes());
         for record in rdr.deserialize() {
-            let record: models::LocationRecord = record.expect("Invalid record in csv");
-            data.push(record);
+            let record: models::LocationRecordRaw = record.expect("Invalid record in csv");
+            data.push(record.into());
         }
         data
     };

@@ -29,8 +29,8 @@ pub fn dice_coefficient(s1: &str, s2: &str) -> f64
     // Vec over HashSet as we're dealing with small strings where linear scans are optimal
     let mut intersections = 0usize;
     let mut pastintersects = Vec::new();
-    for p1 in s1.as_bytes().windows(2).filter(|x| x[0] != b' ' && x[1] != b' ') {
-        for (idx2, p2) in s2.as_bytes().windows(2).filter(|x| x[0] != b' ' && x[1] != b' ').enumerate() {
+    for p1 in s1.as_bytes().windows(2) {
+        for (idx2, p2) in s2.as_bytes().windows(2).enumerate() {
             if !pastintersects.contains(&idx2) && p1 == p2 {
                 intersections += 2;
                 pastintersects.push(idx2);
