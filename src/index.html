@@ -10,6 +10,7 @@
                 <th>Location</th>
                 <th>Latitude</th>
                 <th>Longitude</th>
+                <th>Score</th>
             </tr>
         </thead>
     </table>
@@ -81,6 +82,7 @@ function doSearch() {
                     row.insertCell().textContent = data.suggestions[i].name;
                     row.insertCell().textContent = data.suggestions[i].latitude;
                     row.insertCell().textContent = data.suggestions[i].longitude;
+                    row.insertCell().textContent = data.suggestions[i].score;
                 }
             } else {
                 msg.textContent = "No results found";
