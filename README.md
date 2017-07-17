@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/serprex/backend-coding-challenge.svg?branch=master)](https://travis-ci.org/serprex/backend-coding-challenge)
+
 # Coveo Backend Coding Challenge
 (inspired by https://github.com/busbud/coding-challenge-backend-c)
 
