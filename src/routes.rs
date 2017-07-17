@@ -5,11 +5,11 @@ use serde_json;
 use urlencoded::UrlEncodedQuery;
 
 use models;
-use statics::*;
+use statics;
 use util;
 
 pub fn index(_: &mut Request) -> IronResult<Response> {
-    let mut resp = Response::with((status::Ok, INDEXHTML));
+    let mut resp = Response::with((status::Ok, statics::INDEXHTML));
     resp.headers.set(headers::ContentType(Mime(TopLevel::Text, SubLevel::Html, Vec::new())));
     Ok(resp)
 }
@@ -21,39 +21,18 @@ pub fn suggestions(req: &mut Request) -> IronResult<Response> {
             let longitude: Option<f64> = gets.get("longitude").and_then(|x| x.first()).and_then(|x| x.parse().ok());
             let radius: f64 = gets.get("radius").and_then(|x| x.first()).and_then(|x| x.parse().ok()).unwrap_or(500.0);
             if let Some(gqf) = gets.get("q").and_then(|gq| gq.first()).map(|gq| gq.to_lowercase()) {
-                // `matchs` stores references to the records
-                // this avoids processing records we won't be returning
-                let mut matchs = Vec::new();
-                if gqf.len() < 3 {
-                    // With less than 3 bytes we can't do much of a query
-                    // Specialize to return cities starting with that letter
-                    // Ordered by population descending
-                    // Score: population / total-population-of-results
-
-                    let mut total_population = 0;
-                    for record in GEODATA.iter() {
-                        if record.name_lower.starts_with(gqf.as_str()) ||
-                            record.name_ascii_lower.starts_with(gqf.as_str())
-                        {
-                            total_population += record.population;
-                            matchs.push((record, 0.0));
-                        }
-                    }
-                    for &mut (ref r, ref mut score) in matchs.iter_mut() {
-                        *score = r.population as f64 / total_population as f64;
-                    }
+                // With less than 3 bytes we can't do much of a query
+                // Specialize to return cities starting with that letter
+                // Ordered by population descending
+                // Score: population / total-population-of-results
+                let mut matches = if gqf.len() < 3 {
+                    util::find_prefix(gqf.as_str(), &statics::GEODATA)
                 } else {
-                    for record in GEODATA.iter() {
-                        let score = f64::max(util::dice_coefficient(record.name_lower.as_str(), gqf.as_str()),
-                            util::dice_coefficient(record.name_ascii_lower.as_str(), gqf.as_str()));
-                        if score > 0.1 {
-                            matchs.push((record, score));
-                        }
-                    }
-                }
-                matchs.sort_by(|&(_, dista), &(_, distb)| distb.partial_cmp(&dista).unwrap_or(Ordering::Equal));
+                    util::find_similar(gqf.as_str(), &statics::GEODATA)
+                };
+                matches.sort_by(|&(_, scorea), &(_, scoreb)| scoreb.partial_cmp(&scorea).unwrap_or(Ordering::Equal));
                 let mut result = Vec::new();
-                for (data, score) in matchs.into_iter() {
+                for (data, score) in matches.into_iter() {
                     if let (Some(latitude), Some(longitude)) = (latitude, longitude) {
                         if util::calcdist_latlong(data.lat, data.long, latitude, longitude) > radius {
                             continue
