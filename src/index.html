@@ -1,19 +1,21 @@
 <title>Coveo's Backend Challenge's Frontend</title>
 <div><input id="suggestion" placeholder="Location" /> <input id="suglat" type="number" step="0.000001" placeholder="Latitude" /> <input id="suglong" type="number" step="0.00001" placeholder="Longitude" /></div>
 <div><input id="sugradius" type="number" placeholder="Radius (km)" /></div>
-<div id="msg" style="display:none"></div>
 <div>
     <img id="map" src="https://upload.wikimedia.org/wikipedia/commons/7/74/North_America_blank_map_with_state_and_province_boundaries.png" style="positon:inline-block;width:400px;vertical-align:top" />
-    <table style="display:none;vertical-align:top" id="loctab">
-        <thead>
-            <tr>
-                <th>Location</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Score</th>
-            </tr>
-        </thead>
-    </table>
+    <div style="display:inline-block;vertical-align:top">
+        <div id="msg" style="display:none"></div>
+        <table style="display:none" id="loctab">
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
 </div>
 <script async>"use strict";
 var suggestion = document.getElementById("suggestion");
@@ -47,11 +49,12 @@ for (var i = 0; i<inputFields.length; i++) {
         }
     });
 }
-map.addEventListener("mousedown", function(e) {
-    suglat.value = (mapRect.n - (mapRect.n - mapRect.s) * (e.pageY - this.offsetTop) / this.offsetHeight).toFixed(6);
-    suglong.value = (mapRect.w - (mapRect.w - mapRect.e) * (e.pageX - this.offsetLeft) / this.offsetWidth).toFixed(6);
+map.addEventListener("mousedown", updateCoords);
+function updateCoords(e) {
+    suglat.value = (mapRect.n - (mapRect.n - mapRect.s) * (e.pageY - map.offsetTop) / map.offsetHeight).toFixed(6);
+    suglong.value = (mapRect.w - (mapRect.w - mapRect.e) * (e.pageX - map.offsetLeft) / map.offsetWidth).toFixed(6);
     doSearch();
-});
+}
 function doSearch() {
     if (suggestDelay) {
         clearTimeout(suggestDelay);
@@ -75,9 +78,25 @@ function doSearch() {
         else if (data.suggestions) {
             if (data.suggestions.length) {
                 msg.style.display = "none";
-                loctab.style.display = "inline-block";
+                loctab.style.display = "block";
                 while (loctab.rows.length > 1) loctab.deleteRow(-1);
+                var marks = document.getElementsByClassName("mark");
+                for (var i = marks.length - 1; i>-1; i--) {
+                    document.body.removeChild(marks[i]);
+                }
                 for (var i = 0; i<data.suggestions.length; i++) {
+                    var mark = document.createElement("div");
+                    mark.addEventListener("mousedown", updateCoords);
+                    mark.className = "mark";
+                    mark.style.borderRadius = "50%";
+                    mark.style.width = "4px";
+                    mark.style.height = "4px";
+                    mark.style.background = "#000";
+                    mark.style.position = "absolute";
+                    mark.style.left = (map.offsetLeft + map.offsetWidth * (data.suggestions[i].longitude - mapRect.w) / (mapRect.e - mapRect.w))+"px";
+                    mark.style.top = (map.offsetTop + map.offsetHeight * (mapRect.n - data.suggestions[i].latitude) / (mapRect.n - mapRect.s))+"px";
+                    document.body.appendChild(mark);
+
                     var row = loctab.insertRow();
                     row.insertCell().textContent = data.suggestions[i].name;
                     row.insertCell().textContent = data.suggestions[i].latitude;
