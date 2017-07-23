@@ -1,0 +1,22 @@
+<title>Coveo's Backend Challenge's Frontend</title>
+<link rel="stylesheet" href="/public/site.css">
+
+<div><input id="suggestion" placeholder="Location" /> <input id="suglat" type="number" step="0.000001" placeholder="Latitude" /> <input id="suglong" type="number" step="0.00001" placeholder="Longitude" /></div>
+<div><input id="sugradius" type="number" placeholder="Radius (km)" /></div>
+<div>
+    <img id="map" src="https://upload.wikimedia.org/wikipedia/commons/7/74/North_America_blank_map_with_state_and_province_boundaries.png" style="position:inline-block;width:400px;vertical-align:top" />
+    <div style="display:inline-block;vertical-align:top">
+        <div id="msg" style="display:none"></div>
+        <table style="display:none" id="loctab">
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+<script src="/public/site.js" async></script>

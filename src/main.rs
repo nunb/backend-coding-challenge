@@ -1,5 +1,7 @@
 extern crate iron;
+extern crate mount;
 extern crate router;
+extern crate staticfile;
 extern crate urlencoded;
 
 extern crate serde;
@@ -16,15 +18,23 @@ mod statics;
 mod util;
 
 use std::env;
-use iron::Iron;
+use std::time::Duration;
+use mount::Mount;
 use router::Router;
+use staticfile::Static;
 
 fn main() {
     let port: u16 = env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(80);
 
-    let mut router: Router = Router::new();
-    router.get("/", routes::index, "index");
+    let public = Static::new("public/").cache(Duration::from_secs(60 * 60 * 24));
+
+    let mut router = Router::new();
+    router.get("/", public.clone(), "index");
     router.get("/suggestions", routes::suggestions, "suggestions");
 
-    Iron::new(router).http(("0.0.0.0", port)).unwrap();
+    let mut mount = Mount::new();
+    mount.mount("/", router);
+    mount.mount("/public/", public);
+
+    iron::Iron::new(mount).http(("0.0.0.0", port)).unwrap();
 }

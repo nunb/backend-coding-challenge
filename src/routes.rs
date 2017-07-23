@@ -8,12 +8,6 @@ use models;
 use statics;
 use util;
 
-pub fn index(_: &mut Request) -> IronResult<Response> {
-    let mut resp = Response::with((status::Ok, statics::INDEXHTML));
-    resp.headers.set(headers::ContentType(Mime(TopLevel::Text, SubLevel::Html, Vec::new())));
-    Ok(resp)
-}
-
 pub fn suggestions(req: &mut Request) -> IronResult<Response> {
     let resptext = match req.get_ref::<UrlEncodedQuery>() {
         Ok(ref gets) => {

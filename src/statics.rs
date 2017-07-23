@@ -3,7 +3,6 @@ use fnv::FnvHashMap;
 
 use models;
 
-pub static INDEXHTML: &'static str = include_str!("index.html");
 pub static DATACSV: &'static str = include_str!("../data/cities_canada-usa.tsv");
 
 lazy_static!{

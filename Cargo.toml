@@ -5,7 +5,9 @@ authors = ["serprex"]
 
 [dependencies]
 iron = "0.5"
+mount = "0.3"
 router = "0.5"
+staticfile = { version = "0.4", features = ["cache"] }
 urlencoded = "0.5"
 
 serde = "1.0"
